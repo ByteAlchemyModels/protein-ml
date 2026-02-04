@@ -199,6 +199,7 @@ def load_and_prepare_data() -> pd.DataFrame:
         hemolysis_df
     """
     df_hemolysis = download_ampdeep_hemolysis()
+    df_hemolysis['sequence'] = df_hemolysis['sequence'].str.replace(r"\s+", "", regex=True)
     df_hemolysis = add_features_to_dataframe(df_hemolysis, 'sequence')
     df_hemolysis = add_rule_based_solubility(df_hemolysis)
     return df_hemolysis
@@ -487,7 +488,7 @@ def main():
     df_hemolysis = load_and_prepare_data()
 
     # Create sampled subset for CPU-friendly development
-    df_hem_sample = create_sample_dataset(df_hemolysis, sample_size=1000)
+    df_hem_sample = create_sample_dataset(df_hemolysis, sample_size=2000)
 
     # Print summary stats
     eda_hemolysis(df_hem_sample)

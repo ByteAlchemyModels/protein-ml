@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-02-04T15:44:23.204187",
+  "timestamp": "2026-02-04T17:34:39.340923",
   "random_seed": 42,
   "datasets": {
     "amp_hemolysis": {
-      "filename": "amp_hemolysis_sample_1000.csv",
-      "n_samples": 1000,
+      "filename": "amp_hemolysis_sample_1104.csv",
+      "n_samples": 1104,
       "columns": [
         "sequence",
         "hemolytic",
@@ -21,8 +21,8 @@
       "source": "AMPDeep dataset (synthetic fallback demo possible)",
       "task": "Predict hemolytic activity",
       "label_balance": {
-        "0": 497,
-        "1": 503
+        "0": 552,
+        "1": 552
       }
     }
   },
