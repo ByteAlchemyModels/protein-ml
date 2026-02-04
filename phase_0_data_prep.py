@@ -7,9 +7,8 @@ creates sampled subsets for CPU-friendly development, and performs exploratory
 data analysis.
 
 Datasets sourced:
-1. Hemolysis (from AMPDeep and APD4)
-2. Solubility (from DeepPeptide)
-3. Synthetic peptides (rules-based generation)
+1. Hemolysis (from AMPDeep / AMPDeep-like sources)
+2. Rule-based solubility scores computed on hemolysis sequences
 """
 
 import os
@@ -109,106 +108,6 @@ def download_ampdeep_hemolysis() -> pd.DataFrame:
         print(f"  → Proceeding with synthetic hemolysis data ({len(df_hemolysis)} sequences)")
         return df_hemolysis
 
-
-def create_synthetic_hemolysis(n=500) -> pd.DataFrame:
-    """
-    Generate synthetic hemolysis data based on AA properties.
-    
-    Rules:
-    - High charge (|charge| > 4) → often hemolytic
-    - High hydrophobicity (avg > 1.5) → often hemolytic
-    - Short peptides (< 6 aa) → less likely hemolytic
-    """
-    print("\n[SYNTHETIC HEMOLYSIS] Generating synthetic hemolysis dataset...")
-    
-    sequences = []
-    labels = []
-    
-    aa_list = list(AA_CHARGE.keys())
-    
-    for _ in range(n):
-        # Random length 5-30
-        length = np.random.randint(5, 31)
-        seq = ''.join(np.random.choice(aa_list, length))
-        
-        # Compute properties
-        charge = abs(sum(AA_CHARGE.get(aa, 0) for aa in seq) / length)
-        hydro = sum(AA_HYDROPHOBICITY.get(aa, 0) for aa in seq) / length
-        
-        # Heuristic label
-        hemolytic_prob = 0.1  # base rate
-        if charge > 0.4:
-            hemolytic_prob += 0.4
-        if hydro > 1.0:
-            hemolytic_prob += 0.3
-        if length < 10:
-            hemolytic_prob -= 0.2
-        
-        hemolytic_prob = np.clip(hemolytic_prob, 0, 1)
-        label = 1 if np.random.rand() < hemolytic_prob else 0
-        
-        sequences.append(seq)
-        labels.append(label)
-    
-    df = pd.DataFrame({
-        'sequence': sequences,
-        'hemolytic': labels,
-    })
-    
-    print(f"  Generated {len(df)} synthetic hemolysis sequences")
-    return df
-
-
-# ============================================================================
-# 2. Download and Prepare Solubility Dataset
-# ============================================================================
-
-def create_synthetic_solubility(n=500) -> pd.DataFrame:
-    """
-    Generate synthetic solubility data based on AA properties.
-    
-    Rules:
-    - Polar residues (D, E, K, R, S, T, N, Q) → soluble
-    - Hydrophobic patches → insoluble
-    """
-    print("\n[SYNTHETIC SOLUBILITY] Generating synthetic solubility dataset...")
-    
-    sequences = []
-    labels = []
-    
-    aa_list = list(AA_CHARGE.keys())
-    polar_aa = {'D', 'E', 'K', 'R', 'S', 'T', 'N', 'Q', 'H'}
-    
-    for _ in range(n):
-        length = np.random.randint(5, 31)
-        seq = ''.join(np.random.choice(aa_list, length))
-        
-        # Compute polar fraction
-        polar_count = sum(1 for aa in seq if aa in polar_aa)
-        polar_frac = polar_count / length
-        
-        # Heuristic label
-        soluble_prob = 0.1
-        if polar_frac > 0.3:
-            soluble_prob += 0.5
-        if polar_frac > 0.5:
-            soluble_prob += 0.3
-        
-        soluble_prob = np.clip(soluble_prob, 0, 1)
-        label = 1 if np.random.rand() < soluble_prob else 0
-        
-        sequences.append(seq)
-        labels.append(label)
-    
-    df = pd.DataFrame({
-        'sequence': sequences,
-        'soluble': labels,
-    })
-    
-    print(f"  Generated {len(df)} synthetic solubility sequences")
-    return df
-
-
 # ============================================================================
 # 3. Feature Extraction
 # ============================================================================
@@ -242,79 +141,92 @@ def add_features_to_dataframe(df: pd.DataFrame, seq_col: str = 'sequence') -> pd
     features_df = pd.DataFrame(features)
     return pd.concat([df, features_df], axis=1)
 
+def add_rule_based_solubility(df: pd.DataFrame,
+                              length_col: str = "length",
+                              charge_col: str = "charge",
+                              hydro_col: str = "hydrophobicity",
+                              polar_col: str = "polar_fraction",
+                              score_col: str = "solubility_score",
+                              label_col: str = "soluble_rule") -> pd.DataFrame:
+    """
+    Add a heuristic solubility score and binary label based on simple rules:
+    - More polar → more soluble
+    - Less hydrophobic → more soluble
+    - Moderate length → more soluble
+    - Extreme positive charge → slightly less soluble (aggregation/interaction risk)
+    """
+    L = df[length_col].astype(float)
+    Q = df[charge_col].astype(float)
+    H = df[hydro_col].astype(float)
+    P = df[polar_col].astype(float)
+
+    # Normalize/clip to reasonable ranges for stability
+    L_clipped = L.clip(lower=5, upper=50)
+    H_clipped = H.clip(lower=-3.0, upper=3.0)
+    Q_abs = Q.abs().clip(upper=2.0)
+
+    # Base score: start around 0.0
+    score = np.zeros_like(P, dtype=float)
+
+    # Polar fraction: strong positive effect
+    score += 2.0 * (P - 0.3)          # >0.3 helps, <0.3 hurts
+
+    # Hydrophobicity: more hydrophobic (higher H) → less soluble
+    score += -1.5 * (H_clipped - 0.0)
+
+    # Length: penalize very long peptides, slight bonus for moderate length
+    score += -0.03 * (L_clipped - 20.0)  # >20 aa mildly penalized, <20 mildly boosted
+
+    # Charge: very high |charge| can reduce solubility
+    score += -0.8 * (Q_abs - 0.5)
+
+    # Map to 0–1 with logistic
+    sol_prob = 1.0 / (1.0 + np.exp(-score))
+
+    df[score_col] = sol_prob
+    df[label_col] = (sol_prob >= 0.5).astype(int)
+    return df
 
 # ============================================================================
 # 4. Data Preparation
 # ============================================================================
 
-def load_and_prepare_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_and_prepare_data() -> pd.DataFrame:
     """
-    Load or create all datasets.
-    
+    Load or create the hemolysis dataset and add features + rule-based solubility.
+
     Returns:
-        hemolysis_df, solubility_df, synthetic_df
+        hemolysis_df
     """
-    
-    # Hemolysis
     df_hemolysis = download_ampdeep_hemolysis()
     df_hemolysis = add_features_to_dataframe(df_hemolysis, 'sequence')
-    
-    # Solubility
-    df_solubility = create_synthetic_solubility(n=500)
-    df_solubility = add_features_to_dataframe(df_solubility, 'sequence')
-    
-    # Synthetic
-    df_synthetic = create_synthetic_hemolysis(n=500)
-    df_synthetic = add_features_to_dataframe(df_synthetic, 'sequence')
-    
-    return df_hemolysis, df_solubility, df_synthetic
-
+    df_hemolysis = add_rule_based_solubility(df_hemolysis)
+    return df_hemolysis
 
 # ============================================================================
 # 5. Sampling and Export
 # ============================================================================
 
-def create_sample_datasets(
+def create_sample_dataset(
     df_hemolysis: pd.DataFrame,
-    df_solubility: pd.DataFrame,
-    df_synthetic: pd.DataFrame,
     sample_size: int = 1000,
-) -> None:
-    """Create and export sampled datasets for CPU-friendly development."""
-    
-    print(f"\n[SAMPLING] Creating {sample_size}-sequence subsets...")
-    
-    # Ensure we have enough data
+) -> pd.DataFrame:
+    """Create and export a sampled hemolysis dataset for CPU-friendly development."""
+    print(f"\n[SAMPLING] Creating {sample_size}-sequence hemolysis subset...")
+
     if len(df_hemolysis) < sample_size:
-        print(f"  WARNING: Hemolysis has {len(df_hemolysis)} < {sample_size}, using all")
+        print(f" WARNING: Hemolysis has {len(df_hemolysis)} < {sample_size}, using all")
         sample_hem = df_hemolysis.copy()
     else:
-        sample_hem = df_hemolysis.sample(n=sample_size, random_state=RANDOM_SEED, replace=False)
-    
-    if len(df_solubility) < sample_size:
-        print(f"  WARNING: Solubility has {len(df_solubility)} < {sample_size}, using all")
-        sample_sol = df_solubility.copy()
-    else:
-        sample_sol = df_solubility.sample(n=sample_size, random_state=RANDOM_SEED, replace=False)
-    
-    sample_syn = df_synthetic.sample(n=min(500, len(df_synthetic)), 
-                                      random_state=RANDOM_SEED, replace=False)
-    
-    # Export
-    hem_path = DATA_DIR / f"amp_hemolysis_sample_{len(sample_hem)}.csv"
-    sol_path = DATA_DIR / f"solubility_sample_{len(sample_sol)}.csv"
-    syn_path = DATA_DIR / f"synthetic_peptides_{len(sample_syn)}.csv"
-    
-    sample_hem.to_csv(hem_path, index=False)
-    sample_sol.to_csv(sol_path, index=False)
-    sample_syn.to_csv(syn_path, index=False)
-    
-    print(f"  Saved: {hem_path}")
-    print(f"  Saved: {sol_path}")
-    print(f"  Saved: {syn_path}")
-    
-    return sample_hem, sample_sol, sample_syn
+        sample_hem = df_hemolysis.sample(
+            n=sample_size, random_state=RANDOM_SEED, replace=False
+        )
 
+    hem_path = DATA_DIR / f"amp_hemolysis_sample_{len(sample_hem)}.csv"
+    sample_hem.to_csv(hem_path, index=False)
+    print(f" Saved: {hem_path}")
+
+    return sample_hem
 
 # ============================================================================
 # 6. Exploratory Data Analysis
@@ -359,8 +271,8 @@ def eda_solubility(df: pd.DataFrame) -> None:
     print(f"\nShape: {df.shape}")
     print(f"Missing values:\n{df.isnull().sum()}")
     print(f"\nLabel distribution (soluble):")
-    print(df['soluble'].value_counts())
-    print(f"Label balance: {df['soluble'].value_counts(normalize=True)}")
+    print(df['soluble_rule'].value_counts())
+    print(f"Label balance: {df['soluble_rule'].value_counts(normalize=True)}")
     
     print(f"\nSequence statistics:")
     print(f"  Length: {df['length'].describe()}")
@@ -369,14 +281,12 @@ def eda_solubility(df: pd.DataFrame) -> None:
     print(f"  Polar fraction: {df['polar_fraction'].describe()}")
     
     print(f"\nProperty differences by label:")
-    grouped = df.groupby('soluble')[['length', 'charge', 'hydrophobicity', 'polar_fraction']].mean()
+    grouped = df.groupby('soluble_rule')[['length', 'charge', 'hydrophobicity', 'polar_fraction']].mean()
     print(grouped)
 
 
-def create_eda_plots(df_hem: pd.DataFrame, df_sol: pd.DataFrame, 
-                     df_syn: pd.DataFrame) -> None:
-    """Create and save EDA plots."""
-    
+def create_eda_plots(df_hem: pd.DataFrame) -> None:
+    """Create and save EDA plots for hemolysis dataset."""
     plots_dir = DATA_DIR / 'plots'
     plots_dir.mkdir(exist_ok=True)
     
@@ -433,7 +343,7 @@ def create_eda_plots(df_hem: pd.DataFrame, df_sol: pd.DataFrame,
     fig.suptitle('Solubility Dataset - Exploratory Data Analysis', fontsize=16, fontweight='bold')
     
     ax = axes[0, 0]
-    df_sol.boxplot(column='length', by='soluble', ax=ax)
+    df_hem.boxplot(column='length', by='soluble_rule', ax=ax)
     ax.set_xlabel('Soluble (0=No, 1=Yes)')
     ax.set_ylabel('Sequence Length')
     ax.set_title('Length Distribution by Label')
@@ -441,7 +351,7 @@ def create_eda_plots(df_hem: pd.DataFrame, df_sol: pd.DataFrame,
     plt.xticks([1, 2], ['No', 'Yes'])
     
     ax = axes[0, 1]
-    df_sol.boxplot(column='polar_fraction', by='soluble', ax=ax)
+    df_hem.boxplot(column='polar_fraction', by='soluble_rule', ax=ax)
     ax.set_xlabel('Soluble (0=No, 1=Yes)')
     ax.set_ylabel('Polar Fraction')
     ax.set_title('Polar Fraction Distribution by Label')
@@ -449,14 +359,14 @@ def create_eda_plots(df_hem: pd.DataFrame, df_sol: pd.DataFrame,
     plt.xticks([1, 2], ['No', 'Yes'])
     
     ax = axes[1, 0]
-    df_sol['soluble'].value_counts().plot(kind='bar', ax=ax, color=['skyblue', 'lightgreen'])
+    df_hem['soluble_rule'].value_counts().plot(kind='bar', ax=ax, color=['skyblue', 'lightgreen'])
     ax.set_xlabel('Soluble')
     ax.set_ylabel('Count')
     ax.set_title('Label Balance')
     ax.set_xticklabels(['No (0)', 'Yes (1)'], rotation=0)
     
     ax = axes[1, 1]
-    df_sol.boxplot(column='charge', by='soluble', ax=ax)
+    df_hem.boxplot(column='charge', by='soluble_rule', ax=ax)
     ax.set_xlabel('Soluble (0=No, 1=Yes)')
     ax.set_ylabel('Average Charge')
     ax.set_title('Charge Distribution by Label')
@@ -498,8 +408,8 @@ def create_eda_plots(df_hem: pd.DataFrame, df_sol: pd.DataFrame,
     
     ax = axes[1]
     for label, color in zip([0, 1], ['blue', 'green']):
-        mask = df_sol['soluble'] == label
-        ax.scatter(df_sol[mask]['charge'], df_sol[mask]['polar_fraction'], 
+        mask = df_hem['soluble_rule'] == label
+        ax.scatter(df_hem[mask]['charge'], df_hem[mask]['polar_fraction'],
                   label=f"Soluble={label}", alpha=0.5, s=30, color=color)
     ax.set_xlabel('Average Charge')
     ax.set_ylabel('Polar Fraction')
@@ -519,76 +429,49 @@ def create_eda_plots(df_hem: pd.DataFrame, df_sol: pd.DataFrame,
 
 def create_manifest(
     df_hem: pd.DataFrame,
-    df_sol: pd.DataFrame,
-    df_syn: pd.DataFrame,
 ) -> None:
-    """Create a manifest describing all datasets."""
-    
+    """Create a manifest describing the hemolysis dataset."""
     manifest = {
-        'timestamp': pd.Timestamp.now().isoformat(),
-        'random_seed': RANDOM_SEED,
-        'datasets': {
-            'amp_hemolysis': {
-                'filename': f'amp_hemolysis_sample_{len(df_hem)}.csv',
-                'n_samples': len(df_hem),
-                'columns': list(df_hem.columns),
-                'label_column': 'hemolytic',
-                'label_description': 'Binary: 1=hemolytic, 0=non-hemolytic',
-                'source': 'AMPDeep dataset (synthetic for demo)',
-                'task': 'Predict hemolytic activity',
-                'label_balance': {
-                    '0': int(df_hem['hemolytic'].value_counts().get(0, 0)),
-                    '1': int(df_hem['hemolytic'].value_counts().get(1, 0)),
-                },
-            },
-            'solubility': {
-                'filename': f'solubility_sample_{len(df_sol)}.csv',
-                'n_samples': len(df_sol),
-                'columns': list(df_sol.columns),
-                'label_column': 'soluble',
-                'label_description': 'Binary: 1=soluble, 0=insoluble',
-                'source': 'Synthetic generation based on AA polarity',
-                'task': 'Predict solubility',
-                'label_balance': {
-                    '0': int(df_sol['soluble'].value_counts().get(0, 0)),
-                    '1': int(df_sol['soluble'].value_counts().get(1, 0)),
-                },
-            },
-            'synthetic_peptides': {
-                'filename': f'synthetic_peptides_{len(df_syn)}.csv',
-                'n_samples': len(df_syn),
-                'columns': list(df_syn.columns),
-                'label_column': 'hemolytic',
-                'label_description': 'Binary: 1=hemolytic, 0=non-hemolytic (rule-based)',
-                'source': 'Synthetic generation based on charge and hydrophobicity',
-                'task': 'Test generative models',
-                'label_balance': {
-                    '0': int(df_syn['hemolytic'].value_counts().get(0, 0)),
-                    '1': int(df_syn['hemolytic'].value_counts().get(1, 0)),
+        "timestamp": pd.Timestamp.now().isoformat(),
+        "random_seed": RANDOM_SEED,
+        "datasets": {
+            "amp_hemolysis": {
+                "filename": f"amp_hemolysis_sample_{len(df_hem)}.csv",
+                "n_samples": len(df_hem),
+                "columns": list(df_hem.columns),
+                "label_column": "hemolytic",
+                "label_description": "Binary: 1=hemolytic, 0=non-hemolytic",
+                "source": "AMPDeep dataset (synthetic fallback demo possible)",
+                "task": "Predict hemolytic activity",
+                "label_balance": {
+                    "0": int(df_hem["hemolytic"].value_counts().get(0, 0)),
+                    "1": int(df_hem["hemolytic"].value_counts().get(1, 0)),
                 },
             },
         },
-        'amino_acid_vocabulary': list(AA_CHARGE.keys()),
-        'computed_features': [
-            'length',
-            'charge',
-            'hydrophobicity',
-            'polar_fraction',
+        "amino_acid_vocabulary": list(AA_CHARGE.keys()),
+        "computed_features": [
+            "length",
+            "charge",
+            "hydrophobicity",
+            "polar_fraction",
+            "solubility_score",
+            "soluble_rule",
         ],
-        'feature_descriptions': {
-            'length': 'Number of amino acids in the sequence',
-            'charge': 'Average charge per residue (sum of AA charges / length)',
-            'hydrophobicity': 'Average Kyte-Doolittle hydrophobicity score',
-            'polar_fraction': 'Fraction of polar residues (D, E, K, R, S, T, N, Q, H)',
+        "feature_descriptions": {
+            "length": "Number of amino acids in the sequence",
+            "charge": "Average charge per residue (sum of AA charges / length)",
+            "hydrophobicity": "Average Kyte-Doolittle hydrophobicity score",
+            "polar_fraction": "Fraction of polar residues (D, E, K, R, S, T, N, Q, H)",
+            "solubility_score": "Rule-based solubility score in [0,1]",
+            "soluble_rule": "Binary: 1=predicted soluble (rule-based), 0=insoluble",
         },
     }
-    
-    manifest_path = DATA_DIR / 'data_manifest.json'
-    with open(manifest_path, 'w') as f:
-        json.dump(manifest, f, indent=2)
-    
-    print(f"\nSaved manifest: {manifest_path}")
 
+    manifest_path = DATA_DIR / "data_manifest.json"
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+    print(f"\nSaved manifest: {manifest_path}")
 
 # ============================================================================
 # 8. Main Execution
@@ -596,39 +479,34 @@ def create_manifest(
 
 def main():
     """Main Phase 0 workflow."""
-    
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PHASE 0: PEPTIDE DATASET SOURCING AND EDA")
-    print("="*70)
-    
-    # Load/create data
-    df_hemolysis, df_solubility, df_synthetic = load_and_prepare_data()
-    
-    # Create sampled subsets for CPU-friendly development
-    df_hem_sample, df_sol_sample, df_syn_sample = create_sample_datasets(
-        df_hemolysis, df_solubility, df_synthetic, sample_size=1000
-    )
-    
+    print("=" * 70)
+
+    # Load/create hemolysis data with features + rule-based solubility
+    df_hemolysis = load_and_prepare_data()
+
+    # Create sampled subset for CPU-friendly development
+    df_hem_sample = create_sample_dataset(df_hemolysis, sample_size=1000)
+
     # Print summary stats
     eda_hemolysis(df_hem_sample)
-    eda_solubility(df_sol_sample)
-    
+    eda_solubility(df_hem_sample)
     # Create visualizations
     print("\n[PLOTS] Creating exploratory data analysis visualizations...")
-    create_eda_plots(df_hem_sample, df_sol_sample, df_syn_sample)
-    
-    # Create manifest
-    create_manifest(df_hem_sample, df_sol_sample, df_syn_sample)
-    
-    print("\n" + "="*70)
-    print("PHASE 0 COMPLETE")
-    print("="*70)
-    print("\nNext steps:")
-    print("  1. Review plots in ./data/plots/")
-    print("  2. Check data manifest at ./data/data_manifest.json")
-    print("  3. Run Phase 1: Fine-tune ESM-2 for hemolysis prediction")
-    print("="*70 + "\n")
+    create_eda_plots(df_hem_sample)
 
+    # Create manifest
+    create_manifest(df_hem_sample)
+
+    print("\n" + "=" * 70)
+    print("PHASE 0 COMPLETE")
+    print("=" * 70)
+    print("\nNext steps:")
+    print(" 1. Review plots in ./data/plots/")
+    print(" 2. Check data manifest at ./data/data_manifest.json")
+    print(" 3. Run Phase 1: Fine-tune ESM-2 for hemolysis prediction")
+    print("=" * 70 + "\n")
 
 if __name__ == '__main__':
     main()

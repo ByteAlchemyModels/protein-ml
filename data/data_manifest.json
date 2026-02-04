@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-04T12:55:35.562321",
+  "timestamp": "2026-02-04T15:44:23.204187",
   "random_seed": 42,
   "datasets": {
     "amp_hemolysis": {
@@ -12,55 +12,17 @@
         "length",
         "charge",
         "hydrophobicity",
-        "polar_fraction"
+        "polar_fraction",
+        "solubility_score",
+        "soluble_rule"
       ],
       "label_column": "hemolytic",
       "label_description": "Binary: 1=hemolytic, 0=non-hemolytic",
-      "source": "AMPDeep dataset (synthetic for demo)",
+      "source": "AMPDeep dataset (synthetic fallback demo possible)",
       "task": "Predict hemolytic activity",
       "label_balance": {
         "0": 497,
         "1": 503
-      }
-    },
-    "solubility": {
-      "filename": "solubility_sample_500.csv",
-      "n_samples": 500,
-      "columns": [
-        "sequence",
-        "soluble",
-        "length",
-        "charge",
-        "hydrophobicity",
-        "polar_fraction"
-      ],
-      "label_column": "soluble",
-      "label_description": "Binary: 1=soluble, 0=insoluble",
-      "source": "Synthetic generation based on AA polarity",
-      "task": "Predict solubility",
-      "label_balance": {
-        "0": 192,
-        "1": 308
-      }
-    },
-    "synthetic_peptides": {
-      "filename": "synthetic_peptides_500.csv",
-      "n_samples": 500,
-      "columns": [
-        "sequence",
-        "hemolytic",
-        "length",
-        "charge",
-        "hydrophobicity",
-        "polar_fraction"
-      ],
-      "label_column": "hemolytic",
-      "label_description": "Binary: 1=hemolytic, 0=non-hemolytic (rule-based)",
-      "source": "Synthetic generation based on charge and hydrophobicity",
-      "task": "Test generative models",
-      "label_balance": {
-        "0": 447,
-        "1": 53
       }
     }
   },
@@ -90,12 +52,16 @@
     "length",
     "charge",
     "hydrophobicity",
-    "polar_fraction"
+    "polar_fraction",
+    "solubility_score",
+    "soluble_rule"
   ],
   "feature_descriptions": {
     "length": "Number of amino acids in the sequence",
     "charge": "Average charge per residue (sum of AA charges / length)",
     "hydrophobicity": "Average Kyte-Doolittle hydrophobicity score",
-    "polar_fraction": "Fraction of polar residues (D, E, K, R, S, T, N, Q, H)"
+    "polar_fraction": "Fraction of polar residues (D, E, K, R, S, T, N, Q, H)",
+    "solubility_score": "Rule-based solubility score in [0,1]",
+    "soluble_rule": "Binary: 1=predicted soluble (rule-based), 0=insoluble"
   }
 }
