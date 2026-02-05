@@ -6,11 +6,11 @@ This repository contains a multi-phase pipeline for peptide and protein modeling
 
 - **Phase 0 – Setup & Data**
   - Source peptide datasets (AMPDeep-style hemolysis), engineer basic physicochemical features, and run exploratory data analysis.
-  - Export CPU-friendly sampled datasets for rapid experimentation.[file:100]
+  - Export CPU-friendly sampled datasets for rapid experimentation.
 
 - **Phase 1 – Transformer Predictor**
   - Fine-tune a transformer model (ESM-2) to classify hemolytic vs non-hemolytic peptides.
-  - Save model weights, metrics, and reusable sequence embeddings for downstream tasks.[file:99]
+  - Save model weights, metrics, and reusable sequence embeddings for downstream tasks.
 
 - **Phase 2 – Transformer LM (planned)**
   - Conditional sequence generation conditioned on properties (e.g., hemolysis/solubility labels).
@@ -34,13 +34,13 @@ This repository contains a multi-phase pipeline for peptide and protein modeling
 
 ## Current implementation status
 
-- ✅ Phase 0: data sourcing, feature engineering, rule-based solubility heuristic, and EDA utilities (`phase0_peptide_data_prep_eda.py`).[file:100]
-- ✅ Phase 1: ESM-2-based hemolysis classifier with full training/evaluation loop and saved artifacts (`phase1_esm2_hemolysis_classifier.py`).[file:99]
+- ✅ Phase 0: data sourcing, feature engineering, rule-based solubility heuristic, and EDA utilities (`phase0_peptide_data_prep_eda.py`).
+- ✅ Phase 1: ESM-2-based hemolysis classifier with full training/evaluation loop and saved artifacts (`phase1_esm2_hemolysis_classifier.py`).
 - 🔜 Phases 2–6: generative modeling, property scoring, and closed-loop optimization.
 
 ## Environment
 
-The project uses a conda environment tailored for PyTorch, Hugging Face, and scientific Python.[file:101]
+The project uses a conda environment tailored for PyTorch, Hugging Face, and scientific Python.
 
 To create it:
 
