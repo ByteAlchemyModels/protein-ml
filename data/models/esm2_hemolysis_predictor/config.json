@@ -1,0 +1,10 @@
+{
+  "esm_model_name": "facebook/esm2_t12_35M_UR50D",
+  "max_length": 128,
+  "batch_size": 16,
+  "learning_rate": 0.0001,
+  "epochs": 15,
+  "device": "cpu",
+  "pos_weight": 0.9973404255319147,
+  "random_seed": 42
+}
