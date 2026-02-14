@@ -36,7 +36,8 @@ This repository contains a multi-phase pipeline for peptide and protein modeling
 
 - ✅ Phase 0: data sourcing, feature engineering, rule-based solubility heuristic, and EDA utilities (`phase0_peptide_data_prep_eda.py`).
 - ✅ Phase 1: ESM-2-based hemolysis classifier with full training/evaluation loop and saved artifacts (`phase1_esm2_hemolysis_classifier.py`).
-- 🔜 Phases 2–6: generative modeling, property scoring, and closed-loop optimization.
+- ✅ Phase 2: Conditional peptide generator using a Transformer decoder with ESM-2 cross-attention, property-conditioned autoregressive sampling, quality analysis, and generation artifacts (`phase2_conditional_peptide_generator.py`).
+- 🔜 Phases 3–6: diffusion-based generation, property scoring, and closed-loop optimization.
 
 ## Environment
 

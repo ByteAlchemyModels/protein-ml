@@ -1,6 +1,38 @@
 {
-  "test_loss": 2.3329324288801714,
-  "test_token_accuracy": 0.30034900431122974,
+  "test_loss": 2.3383771537682088,
+  "test_accuracy_top1": 0.30034900431122974,
+  "test_accuracy_top5": 0.5988503387394786,
+  "test_perplexity": 10.364403074870285,
+  "test_per_condition": {
+    "<NON_HEMO|INSOL>": {
+      "n_samples": 608,
+      "loss": 2.867206228406806,
+      "accuracy_top1": 0.13815789473684212,
+      "accuracy_top5": 0.42598684210526316,
+      "perplexity": 17.587813165220368
+    },
+    "<NON_HEMO|SOL>": {
+      "n_samples": 1768,
+      "loss": 2.8593952418452475,
+      "accuracy_top1": 0.12782805429864252,
+      "accuracy_top5": 0.3778280542986425,
+      "perplexity": 17.450970128250372
+    },
+    "<HEMO|INSOL>": {
+      "n_samples": 1378,
+      "loss": 1.9064270789114588,
+      "accuracy_top1": 0.4310595065312046,
+      "accuracy_top5": 0.7822931785195936,
+      "perplexity": 6.729003598032777
+    },
+    "<HEMO|SOL>": {
+      "n_samples": 1117,
+      "loss": 1.7587344913260683,
+      "accuracy_top1": 0.5004476275738585,
+      "accuracy_top5": 0.8164726947179947,
+      "perplexity": 5.805086356845248
+    }
+  },
   "generation_analysis": {
     "n_generated": 200,
     "avg_length": 21.165,
