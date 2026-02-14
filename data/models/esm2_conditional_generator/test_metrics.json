@@ -1,0 +1,11 @@
+{
+  "test_loss": 2.3329324288801714,
+  "test_token_accuracy": 0.30034900431122974,
+  "generation_analysis": {
+    "n_generated": 200,
+    "avg_length": 21.165,
+    "std_length": 10.414786363627437,
+    "valid_fraction": 1.0,
+    "novel_fraction": 0.995
+  }
+}
