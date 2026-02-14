@@ -2,12 +2,12 @@
 
 ### Architecture Overview
 
-The script implements a **property-conditioned autoregressive peptide generator** that fits seamlessly into your existing pipeline: [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/145561e0-6891-40b0-bd79-809ae97911d2/README.md)
+The script implements a **property-conditioned autoregressive peptide generator** that fits seamlessly into your existing pipeline:
 
-- **Encoder**: Frozen ESM-2 (`facebook/esm2_t12_35M_UR50D`) — the same backbone from Phase 1 — provides rich protein-language-model context via cross-attention at generation time. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/b014583c-0a3e-4b98-84a2-21d2913224f9/phase1_esm2_hemolysis_classifier.py)
+- **Encoder**: Frozen ESM-2 (`facebook/esm2_t12_35M_UR50D`) — the same backbone from Phase 1 — provides rich protein-language-model context via cross-attention at generation time. 
 - **Decoder**: A 4-layer Transformer decoder with causal masking that learns to predict the next amino acid token, conditioned on a **property prefix token**.
 - **Conditioning**: Four condition tags map `(hemolytic, soluble_rule)` label combinations to special prefix tokens (`<HEMO|SOL>`, `<NON_HEMO|INSOL>`, etc.) prepended to each sequence during training. At inference, you supply the desired condition and the model samples accordingly.
-- **Training**: Teacher-forced next-token cross-entropy loss with linear warmup schedule — matching the Phase 1 training conventions. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/b014583c-0a3e-4b98-84a2-21d2913224f9/phase1_esm2_hemolysis_classifier.py)
+- **Training**: Teacher-forced next-token cross-entropy loss with linear warmup schedule — matching the Phase 1 training conventions.
 
 ### What the Script Produces
 
@@ -25,10 +25,10 @@ The script implements a **property-conditioned autoregressive peptide generator*
 
 ### Data & Compatibility
 
-- Loads directly from `data/amp_hemolysis_sample_1104.csv` — the exact CSV from Phase 0, including the `soluble_rule` column. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/cccfa4e1-d851-49d1-b33b-14264292494e/phase0_peptide_data_prep_eda.py)
-- Uses the same `split` column logic and `create_splits()` pattern from Phase 1 (train/val carved from predefined split, test preserved). [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/b014583c-0a3e-4b98-84a2-21d2913224f9/phase1_esm2_hemolysis_classifier.py)
-- All 1,104 sequences passed validation — zero rows removed for non-standard amino acids. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/a828757b-c1dd-4c5f-87b1-2bacdfa0c119/amp_hemolysis_sample_1104.csv)
-- **No new packages required** — uses only `torch`, `transformers`, `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn` from your existing `environment.yml`. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/5bbb7c29-178d-41c4-9422-ae483c476893/environment.yml)
+- Loads directly from `data/amp_hemolysis_sample_1104.csv` — the exact CSV from Phase 0, including the `soluble_rule` column.
+- Uses the same `split` column logic and `create_splits()` pattern from Phase 1 (train/val carved from predefined split, test preserved).
+- All 1,104 sequences passed validation — zero rows removed for non-standard amino acids.
+- **No new packages required** — uses only `torch`, `transformers`, `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn` from your existing `environment.yml`.
 
 ### How to Run
 
@@ -53,7 +53,7 @@ Replace the current `## Current implementation status` block with:
 
 ### Validation Results
 
-All eight automated tests passed against your live data: [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/61731727/a828757b-c1dd-4c5f-87b1-2bacdfa0c119/amp_hemolysis_sample_1104.csv)
+All eight automated tests passed against your live data:
 
 - ✓ Custom vocabulary (28 tokens: 20 AAs + 4 condition tags + 4 special)
 - ✓ Encode/decode roundtrip for all condition combinations
