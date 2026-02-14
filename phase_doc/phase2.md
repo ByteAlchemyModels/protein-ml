@@ -42,9 +42,8 @@ python phase2_conditional_peptide_generator.py
 
 Replace the current `## Current implementation status` block with:
 
-```markdown
 ## Current implementation status
-
+```markdown
 - ✅ Phase 0: data sourcing, feature engineering, rule-based solubility heuristic, and EDA utilities (`phase0_peptide_data_prep_eda.py`).
 - ✅ Phase 1: ESM-2-based hemolysis classifier with full training/evaluation loop and saved artifacts (`phase1_esm2_hemolysis_classifier.py`).
 - ✅ Phase 2: Conditional peptide generator using a Transformer decoder with ESM-2 cross-attention, property-conditioned autoregressive sampling, quality analysis, and generation artifacts (`phase2_conditional_peptide_generator.py`).
