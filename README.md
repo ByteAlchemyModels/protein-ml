@@ -12,7 +12,7 @@ This repository contains a multi-phase pipeline for peptide and protein modeling
   - Fine-tune a transformer model (ESM-2) to classify hemolytic vs non-hemolytic peptides.
   - Save model weights, metrics, and reusable sequence embeddings for downstream tasks.
 
-- **Phase 2 – Transformer LM (planned)**
+- **Phase 2 – Transformer LM**
   - Conditional sequence generation conditioned on properties (e.g., hemolysis/solubility labels).
   - Use pretrained protein language models as a base for guided peptide generation.
 
